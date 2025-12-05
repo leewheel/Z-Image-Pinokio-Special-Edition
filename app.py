@@ -124,7 +124,6 @@ with gr.Blocks(title="Z-Image-Turbo") as demo:
             output_image = gr.Image(
                 label="Generated Image",
                 type="pil",
-                show_download_button=True,
             )
             used_seed = gr.Number(label="Seed Used", interactive=False)
     
