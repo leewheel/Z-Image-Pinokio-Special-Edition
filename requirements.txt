@@ -1,0 +1,23 @@
+# Core dependencies
+torch>=2.0.0
+torchvision
+gradio>=6.0.0
+Pillow
+numpy
+
+# ComfyUI dependencies (if not using existing ComfyUI installation)
+# These are needed if you're running ComfyUI nodes directly
+safetensors
+transformers
+accelerate
+diffusers
+omegaconf
+einops
+tqdm
+psutil
+kornia
+spandrel
+soundfile
+
+# Optional for better performance
+xformers; platform_system != "Darwin"
