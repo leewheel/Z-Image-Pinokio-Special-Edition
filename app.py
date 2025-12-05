@@ -52,7 +52,7 @@ def generate_image(
 load_pipeline()
 
 # Create Gradio interface
-with gr.Blocks(title="Z-Image-Turbo", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="Z-Image-Turbo") as demo:
     gr.Markdown(
         """
         # 🎨 Z-Image-Turbo
@@ -156,4 +156,4 @@ with gr.Blocks(title="Z-Image-Turbo", theme=gr.themes.Soft()) as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(server_name="0.0.0.0", server_port=7860, theme=gr.themes.Soft())
