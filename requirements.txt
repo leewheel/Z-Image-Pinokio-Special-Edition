@@ -10,7 +10,7 @@ numpy
 safetensors
 transformers
 accelerate
-diffusers
+git+https://github.com/huggingface/diffusers.git
 omegaconf
 einops
 tqdm
