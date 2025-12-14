@@ -21,7 +21,6 @@ def load_pipeline():
 
 def generate_image(
     prompt,
-    negative_prompt,
     width,
     height,
     num_inference_steps,
@@ -38,7 +37,6 @@ def generate_image(
     
     image = pipe(
         prompt=prompt,
-        negative_prompt=negative_prompt if negative_prompt else None,
         height=height,
         width=width,
         num_inference_steps=num_inference_steps,
@@ -69,11 +67,6 @@ with gr.Blocks(title="Z-Image-Turbo") as demo:
                 label="Prompt",
                 placeholder="Describe the image you want to generate...",
                 lines=3,
-            )
-            negative_prompt = gr.Textbox(
-                label="Negative Prompt (Optional)",
-                placeholder="What to avoid in the image...",
-                lines=2,
             )
             
             with gr.Row():
@@ -146,7 +139,6 @@ with gr.Blocks(title="Z-Image-Turbo") as demo:
         fn=generate_image,
         inputs=[
             prompt,
-            negative_prompt,
             width,
             height,
             num_inference_steps,
