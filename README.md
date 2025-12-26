@@ -25,6 +25,8 @@ This Version is based on https://github.com/PierrunoYT/Z-Image-Pinokio.git
    - Install diffusers from source (required for ZImagePipeline)
    - Download the Z-Image-Turbo model (~12GB)
 4. Click **Start** to launch the web UI
+<img width="3192" height="1846" alt="image" src="https://github.com/user-attachments/assets/9eb880f8-7c1e-4e68-b3cf-7d6d6bd7c392" />
+<img width="3200" height="1836" alt="image" src="https://github.com/user-attachments/assets/3b782a31-17eb-4642-b75c-a91b7d8e8858" />
 
 ### Manual Installation
 
