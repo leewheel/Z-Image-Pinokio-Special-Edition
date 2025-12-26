@@ -109,7 +109,7 @@ TEXT = {
 }
 
 # =========================
-# 路径配置（同前）
+# 路径配置
 # =========================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -177,28 +177,37 @@ def update_prompt_with_lora(prompt, selected_loras, lora_alpha):
     return f"{prompt_clean} {' '.join(tags)}".strip()
 
 def apply_lora_to_pipeline(pipe_local, selected_loras, lora_alpha):
-    if not selected_loras or pipe_local is None:
+    if pipe_local is None or not selected_loras:
         return pipe_local
+
+    if pipe_local.transformer is None:
+        print("⚠️ Transformer 未加载，无法应用 LoRA")
+        return pipe_local
+
     try:
         alpha = float(lora_alpha)
     except:
         alpha = 1.0
+
     if hasattr(pipe_local, "unload_lora_weights"):
         try:
             pipe_local.unload_lora_weights()
         except:
             pass
+
     adapters = []
     for lora_file in selected_loras:
         adapter_name = re.sub(r"[^a-zA-Z0-9_]", "_", os.path.splitext(lora_file)[0])
         pipe_local.load_lora_weights(LORA_ROOT, weight_name=lora_file, adapter_name=adapter_name)
         adapters.append(adapter_name)
+
     if adapters:
         pipe_local.set_adapters(adapters, adapter_weights=[alpha] * len(adapters))
+        print(f"✅ 已加载 {len(adapters)} 个 LoRA")
     return pipe_local
 
 # =========================
-# 模型加载（保持不变）
+# 模型扫描与加载（关键修复：transformer 不能为 None）
 # =========================
 def scan_model_variants(root_dir):
     if not os.path.isdir(root_dir):
@@ -236,24 +245,27 @@ def load_pipeline(transformer_choice="default", vae_choice="default", vram_type=
 
     print(f"🛠 正在加载模型 → Transformer: {transformer_choice} | VAE: {vae_choice} | 模式: {vram_type}")
 
-    transformer = None
+    # 关键修复：始终加载官方 transformer（不能为 None）
+    transformer = ZImageTransformer2DModel.from_pretrained(TRANSFORMER_ROOT, torch_dtype=DTYPE, local_files_only=True)
+
+    # 如果用户选择自定义 Transformer，则替换权重
     if transformer_choice != "default":
         t_path = resolve_model_path(transformer_choice, MOD_TRANSFORMER)
         if t_path:
             if os.path.isdir(t_path):
-                transformer = ZImageTransformer2DModel.from_pretrained(t_path, torch_dtype=DTYPE, local_files_only=True)
+                custom_t = ZImageTransformer2DModel.from_pretrained(t_path, torch_dtype=DTYPE, local_files_only=True)
+                transformer = custom_t
             else:
-                default_t = ZImageTransformer2DModel.from_pretrained(TRANSFORMER_ROOT, torch_dtype=DTYPE, local_files_only=True)
                 state = load_file(t_path, device="cpu")
                 processed = {}
                 prefix = "model.diffusion_model."
                 for k, v in state.items():
                     new_k = k[len(prefix):] if k.startswith(prefix) else k
                     processed[new_k] = v.to(DTYPE)
-                default_t.load_state_dict(processed, strict=False)
-                transformer = default_t
+                transformer.load_state_dict(processed, strict=False)
                 del state, processed
 
+    # VAE
     vae = AutoencoderKL.from_pretrained(VAE_ROOT, torch_dtype=DTYPE, local_files_only=True)
     if vae_choice != "default":
         v_path = resolve_model_path(vae_choice, MOD_VAE)
@@ -263,8 +275,10 @@ def load_pipeline(transformer_choice="default", vae_choice="default", vram_type=
             else:
                 vae = AutoencoderKL.from_pretrained(v_path, torch_dtype=DTYPE, local_files_only=True)
 
+    # Text Encoder
     text_encoder = AutoModelForCausalLM.from_pretrained(TEXT_ENCODER_ROOT, torch_dtype=DTYPE, local_files_only=True)
 
+    # 组装 Pipeline
     pipe = ZImagePipeline.from_pretrained(
         BASE_SNAPSHOT_DIR,
         torch_dtype=DTYPE,
@@ -277,15 +291,17 @@ def load_pipeline(transformer_choice="default", vae_choice="default", vram_type=
     if DEVICE == "cuda":
         if vram_type == "12G以下 (优化模式)":
             pipe.enable_sequential_cpu_offload()
+            print("  - 已启用优化模式")
         else:
             pipe.to("cuda")
+            print("  - 已启用高端机模式")
 
     current_model_config = config_key
     print("✅ Pipeline 加载完成")
     return pipe
 
 # =========================
-# 生成与中断
+# 中断与生成
 # =========================
 def interrupt_callback(pipe, step, timestep, callback_kwargs):
     global is_generating_interrupted
@@ -380,10 +396,11 @@ def edit_image(image, angle, x, y, w, h, hflip, vflip, filter_name, brightness, 
     return img
 
 # =========================
-# Gradio 界面 + 语言切换（已修复）
+# Gradio 界面 + 语言切换
 # =========================
 with gr.Blocks() as demo:
     lang_state = gr.State("zh")
+    vram_current = gr.State(TEXT["zh"]["vram_low"])
 
     with gr.Row():
         title_md = gr.Markdown("## " + TEXT["zh"]["title"])
@@ -400,7 +417,8 @@ with gr.Blocks() as demo:
                     lora_list = gr.CheckboxGroup(label=TEXT["zh"]["lora_label"], choices=scan_lora_items())
                     lora_alpha = gr.Slider(0, 2, 1, step=0.05, label=TEXT["zh"]["lora_strength"])
 
-                    gr.Markdown(TEXT["zh"]["model_section"])
+                    model_section_md = gr.Markdown(TEXT["zh"]["model_section"])
+
                     with gr.Row():
                         transformer_choice = gr.Dropdown(label=TEXT["zh"]["transformer"], choices=get_choices(MOD_TRANSFORMER), value="default")
                         vae_choice = gr.Dropdown(label=TEXT["zh"]["vae"], choices=get_choices(MOD_VAE), value="default")
@@ -457,10 +475,17 @@ with gr.Blocks() as demo:
                         contrast = gr.Slider(-100, 100, 0, step=1, label=TEXT["zh"]["contrast"])
                         saturation = gr.Slider(-100, 100, 0, step=1, label=TEXT["zh"]["saturation"])
 
-    # 语言切换函数
-    def switch_language(lang):
+    # 语言切换（保留显存选择）
+    def switch_language(lang, current_vram):
         new_lang = "en" if lang == "zh" else "zh"
         t = TEXT[new_lang]
+
+        # 映射当前选择
+        if "12G以下" in current_vram or "Under 12GB" in current_vram:
+            new_vram = t["vram_low"]
+        else:
+            new_vram = t["vram_high"]
+
         return (
             new_lang,
             f"## {t['title']}",
@@ -471,9 +496,10 @@ with gr.Blocks() as demo:
             gr.update(value=t['refresh_lora']),
             gr.update(label=t['lora_label']),
             gr.update(label=t['lora_strength']),
+            t['model_section'],
             gr.update(label=t['transformer']),
             gr.update(label=t['vae']),
-            gr.update(label=t['vram_type'], choices=[t['vram_low'], t['vram_high']], value=t['vram_low'] if new_lang == "zh" else t['vram_low']),
+            gr.update(label=t['vram_type'], choices=[t['vram_low'], t['vram_high']], value=new_vram),
             gr.update(label=t['device']),
             gr.update(label=t['num_images']),
             gr.update(label=t['output_format']),
@@ -501,26 +527,30 @@ with gr.Blocks() as demo:
             gr.update(label=t['brightness']),
             gr.update(label=t['contrast']),
             gr.update(label=t['saturation']),
+            new_vram
         )
 
     lang_btn.click(
         fn=switch_language,
-        inputs=lang_state,
+        inputs=[lang_state, vram_current],
         outputs=[
             lang_state, title_md, lang_btn,
             tab_gen, tab_edit,
             prompt, refresh_lora, lora_list, lora_alpha,
+            model_section_md,
             transformer_choice, vae_choice, vram_type, device,
             num_images, image_format, width, height,
             num_inference_steps, guidance_scale, seed, randomize_seed,
             generate_btn, stop_btn, gallery, used_seed,
             image_input, rotate_angle, crop_x, crop_y, crop_width, crop_height,
             flip_horizontal, flip_vertical, edit_btn, edited_image_output,
-            apply_filter, brightness, contrast, saturation
+            apply_filter, brightness, contrast, saturation,
+            vram_current
         ]
     )
 
-    # 其他事件绑定
+    vram_type.change(fn=lambda x: x, inputs=vram_type, outputs=vram_current)
+
     refresh_lora.click(fn=scan_lora_items, outputs=lora_list)
     lora_list.change(update_prompt_with_lora, [prompt, lora_list, lora_alpha], prompt)
     lora_alpha.change(update_prompt_with_lora, [prompt, lora_list, lora_alpha], prompt)
