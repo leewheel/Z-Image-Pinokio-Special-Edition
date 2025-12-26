@@ -1,6 +1,7 @@
-# Z-Image-Turbo for Pinokio
+# Z-Image-Turbo Special Edition for Pinokio
 
 A Gradio web interface for the Z-Image-Turbo model, designed for easy installation via [Pinokio](https://pinokio.computer/).
+This Version is based on https://github.com/PierrunoYT/Z-Image-Pinokio.git
 
 ## Features
 
@@ -9,6 +10,8 @@ A Gradio web interface for the Z-Image-Turbo model, designed for easy installati
 - **High-Quality Images** - Uses the Z-Image-Turbo model from Tongyi-MAI
 - **Fast Generation** - Turbo model generates images in just 8 steps
 - **Full Control** - Adjustable dimensions, steps, guidance, and seed
+- **Support Lora** - supports loading LoRA. You can download the LoRA of Z-Image Turbo from C Station for use, or use the LoRA you trained yourself.
+- **Support Select transformer** - supports the use of custom transformers, and you can download the Z-Image model from C Station for use.
 
 ## Installation
 
@@ -27,8 +30,8 @@ A Gradio web interface for the Z-Image-Turbo model, designed for easy installati
 
 ```bash
 # Clone the repository
-git clone https://github.com/PierrunoYT/Z-Image-Pinokio.git
-cd Z-Image-Pinokio
+git clone https://github.com/leewheel/Z-Image-Pinokio-Special-Edition.git
+cd Z-Image-Pinokio-Special-Edition
 
 # Create virtual environment
 python -m venv env
@@ -67,7 +70,7 @@ python app.py
 ## System Requirements
 
 ### Minimum
-- **GPU**: 12GB VRAM (NVIDIA with CUDA)
+- **GPU**: 4GB VRAM (NVIDIA with CUDA)
 - **RAM**: 16GB
 - **Storage**: ~15GB for model
 
