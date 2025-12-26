@@ -31,7 +31,7 @@ TEXT = {
         "model_section": "### 模型选择",
         "transformer": "Transformer",
         "vae": "VAE",
-        "vram_type": "显存类型（决定运行模式）",
+        "vram_type": "显存类型（决定运行模式，最小支持4GB显存）",
         "vram_low": "12G以下 (优化模式)",
         "vram_high": "高端机模式",
         "device": "设备",
@@ -75,7 +75,7 @@ TEXT = {
         "model_section": "### Model Selection",
         "transformer": "Transformer",
         "vae": "VAE",
-        "vram_type": "VRAM Type (Performance Mode)",
+        "vram_type": "VRAM Type (Performance Mode Minimum 4GB graphics memory is supported.)",
         "vram_low": "Under 12GB (Optimized Mode)",
         "vram_high": "High-End GPU Mode",
         "device": "Device",
@@ -139,7 +139,7 @@ for p in [MOD_TRANSFORMER, MOD_VAE, LORA_ROOT, OUTPUT_DIR]:
 
 # 全局变量
 pipe = None
-current_model_config = {"transformer": "default", "vae": "default", "vram_type": "12G以下 (优化模式)"}
+current_model_config = {"transformer": "default", "vae": "default", "is_low_vram": True}  # 改为 bool 判断
 is_generating_interrupted = False
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -207,7 +207,7 @@ def apply_lora_to_pipeline(pipe_local, selected_loras, lora_alpha):
     return pipe_local
 
 # =========================
-# 模型扫描与加载（关键修复：transformer 不能为 None）
+# 模型加载（使用 bool 判断显存模式）
 # =========================
 def scan_model_variants(root_dir):
     if not os.path.isdir(root_dir):
@@ -233,22 +233,21 @@ def resolve_model_path(choice, mod_root):
         return path
     return None
 
-def load_pipeline(transformer_choice="default", vae_choice="default", vram_type="12G以下 (优化模式)"):
+def load_pipeline(transformer_choice="default", vae_choice="default", is_low_vram=True):
     global pipe, current_model_config
 
-    config_key = (transformer_choice, vae_choice, vram_type)
+    config_key = (transformer_choice, vae_choice, is_low_vram)
     if pipe is not None and current_model_config == config_key:
         return pipe
 
     auto_flush_vram()
     pipe = None
 
-    print(f"🛠 正在加载模型 → Transformer: {transformer_choice} | VAE: {vae_choice} | 模式: {vram_type}")
+    print(f"🛠 正在加载模型 → Transformer: {transformer_choice} | VAE: {vae_choice} | 低显存模式: {is_low_vram}")
 
-    # 关键修复：始终加载官方 transformer（不能为 None）
+    # 始终加载官方 transformer
     transformer = ZImageTransformer2DModel.from_pretrained(TRANSFORMER_ROOT, torch_dtype=DTYPE, local_files_only=True)
 
-    # 如果用户选择自定义 Transformer，则替换权重
     if transformer_choice != "default":
         t_path = resolve_model_path(transformer_choice, MOD_TRANSFORMER)
         if t_path:
@@ -288,10 +287,11 @@ def load_pipeline(transformer_choice="default", vae_choice="default", vram_type=
         vae=vae,
     )
 
+    # 显存模式（使用 bool 判断，不依赖字符串）
     if DEVICE == "cuda":
-        if vram_type == "12G以下 (优化模式)":
+        if is_low_vram:
             pipe.enable_sequential_cpu_offload()
-            print("  - 已启用优化模式")
+            print("  - 已启用低显存优化模式")
         else:
             pipe.to("cuda")
             print("  - 已启用高端机模式")
@@ -311,11 +311,14 @@ def interrupt_callback(pipe, step, timestep, callback_kwargs):
 
 def generate_image(prompt, selected_loras, lora_alpha, device, num_images, image_format,
                    width, height, num_inference_steps, guidance_scale, seed, randomize_seed,
-                   transformer_choice, vae_choice, vram_type, progress=gr.Progress()):
+                   transformer_choice, vae_choice, vram_type_str, progress=gr.Progress()):
     global is_generating_interrupted
     is_generating_interrupted = False
 
-    pipe_local = load_pipeline(transformer_choice, vae_choice, vram_type)
+    # 判断是否低显存模式（关键修复）
+    is_low_vram = "12G" in vram_type_str or "Under 12GB" in vram_type_str
+
+    pipe_local = load_pipeline(transformer_choice, vae_choice, is_low_vram)
     pipe_local = apply_lora_to_pipeline(pipe_local, selected_loras, lora_alpha)
 
     if randomize_seed:
@@ -352,7 +355,7 @@ def generate_image(prompt, selected_loras, lora_alpha, device, num_images, image
     return results, seed
 
 # =========================
-# 图片编辑
+# 图片编辑（保持不变）
 # =========================
 def edit_image(image, angle, x, y, w, h, hflip, vflip, filter_name, brightness, contrast, saturation):
     if image is None:
@@ -396,11 +399,10 @@ def edit_image(image, angle, x, y, w, h, hflip, vflip, filter_name, brightness, 
     return img
 
 # =========================
-# Gradio 界面 + 语言切换
+# Gradio 界面（语言切换 + 显存模式保留）
 # =========================
 with gr.Blocks() as demo:
     lang_state = gr.State("zh")
-    vram_current = gr.State(TEXT["zh"]["vram_low"])
 
     with gr.Row():
         title_md = gr.Markdown("## " + TEXT["zh"]["title"])
@@ -475,17 +477,10 @@ with gr.Blocks() as demo:
                         contrast = gr.Slider(-100, 100, 0, step=1, label=TEXT["zh"]["contrast"])
                         saturation = gr.Slider(-100, 100, 0, step=1, label=TEXT["zh"]["saturation"])
 
-    # 语言切换（保留显存选择）
-    def switch_language(lang, current_vram):
+    # 语言切换（不再依赖字符串匹配）
+    def switch_language(lang):
         new_lang = "en" if lang == "zh" else "zh"
         t = TEXT[new_lang]
-
-        # 映射当前选择
-        if "12G以下" in current_vram or "Under 12GB" in current_vram:
-            new_vram = t["vram_low"]
-        else:
-            new_vram = t["vram_high"]
-
         return (
             new_lang,
             f"## {t['title']}",
@@ -499,7 +494,7 @@ with gr.Blocks() as demo:
             t['model_section'],
             gr.update(label=t['transformer']),
             gr.update(label=t['vae']),
-            gr.update(label=t['vram_type'], choices=[t['vram_low'], t['vram_high']], value=new_vram),
+            gr.update(label=t['vram_type'], choices=[t['vram_low'], t['vram_high']]),
             gr.update(label=t['device']),
             gr.update(label=t['num_images']),
             gr.update(label=t['output_format']),
@@ -527,12 +522,11 @@ with gr.Blocks() as demo:
             gr.update(label=t['brightness']),
             gr.update(label=t['contrast']),
             gr.update(label=t['saturation']),
-            new_vram
         )
 
     lang_btn.click(
         fn=switch_language,
-        inputs=[lang_state, vram_current],
+        inputs=lang_state,
         outputs=[
             lang_state, title_md, lang_btn,
             tab_gen, tab_edit,
@@ -544,13 +538,11 @@ with gr.Blocks() as demo:
             generate_btn, stop_btn, gallery, used_seed,
             image_input, rotate_angle, crop_x, crop_y, crop_width, crop_height,
             flip_horizontal, flip_vertical, edit_btn, edited_image_output,
-            apply_filter, brightness, contrast, saturation,
-            vram_current
+            apply_filter, brightness, contrast, saturation
         ]
     )
 
-    vram_type.change(fn=lambda x: x, inputs=vram_type, outputs=vram_current)
-
+    # 其他事件
     refresh_lora.click(fn=scan_lora_items, outputs=lora_list)
     lora_list.change(update_prompt_with_lora, [prompt, lora_list, lora_alpha], prompt)
     lora_alpha.change(update_prompt_with_lora, [prompt, lora_list, lora_alpha], prompt)
