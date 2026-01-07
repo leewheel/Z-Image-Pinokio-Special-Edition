@@ -10,6 +10,19 @@ import tempfile
 import locale
 
 # =========================
+# 路径配置和文件夹创建
+# =========================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MOD_DIR = os.path.join(BASE_DIR, "MOD")
+MOD_TRANSFORMER = os.path.join(MOD_DIR, "transformer")
+MOD_VAE = os.path.join(MOD_DIR, "vae")
+LORA_ROOT = os.path.join(BASE_DIR, "lora")
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
+
+for p in [MOD_TRANSFORMER, MOD_VAE, LORA_ROOT, OUTPUT_DIR]:
+    os.makedirs(p, exist_ok=True)
+
+# =========================
 # 语言检测
 # =========================
 try:
@@ -139,20 +152,11 @@ BASE_SNAPSHOT_DIR = os.path.join(BASE_DIR, "cache", "HF_HOME", "hub", "models--T
 if not os.path.exists(BASE_SNAPSHOT_DIR):
     BASE_SNAPSHOT_DIR = os.path.join(BASE_DIR, "ckpts", "Z-Image-Turbo")
     if not os.path.exists(BASE_SNAPSHOT_DIR):
-        BASE_SNAPSHOT_DIR = "." 
+        BASE_SNAPSHOT_DIR = "."
 
 TRANSFORMER_ROOT = os.path.join(BASE_SNAPSHOT_DIR, "transformer")
 TEXT_ENCODER_ROOT = os.path.join(BASE_SNAPSHOT_DIR, "text_encoder")
 VAE_ROOT = os.path.join(BASE_SNAPSHOT_DIR, "vae")
-
-MOD_DIR = os.path.join(BASE_DIR, "MOD")
-MOD_TRANSFORMER = os.path.join(MOD_DIR, "transformer")
-MOD_VAE = os.path.join(MOD_DIR, "vae")
-LORA_ROOT = os.path.join(BASE_DIR, "lora")
-OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
-
-for p in [MOD_TRANSFORMER, MOD_VAE, LORA_ROOT, OUTPUT_DIR]:
-    os.makedirs(p, exist_ok=True)
 
 pipe_t2i = None
 pipe_i2i = None
