@@ -24,4 +24,4 @@ spandrel
 soundfile
 
 # Optional for better performance
-xformers; platform_system != "Darwin"
+# xformers; platform_system != "Darwin"
