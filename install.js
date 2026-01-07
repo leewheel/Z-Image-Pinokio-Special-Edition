@@ -36,7 +36,7 @@ module.exports = {
     {
       method: "notify",
       params: {
-        html: "Installation complete! Click 'Start' to launch Z-Image-Turbo."
+        html: "Installation complete! Click 'Start' to launch Z-Image-Turbo LowVram Edition."
       }
     }
   ]
