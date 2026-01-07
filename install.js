@@ -26,12 +26,11 @@ module.exports = {
     // Using && dir to ensure clean prompt termination
     {
       method: "shell.run",
-      params: {
-        venv: "env",
-        message: [
-           "huggingface-cli download --endpoint-url https://hf-mirror.com Tongyi-MAI/Z-Image-Turbo --local-dir-use-symlinks False && dir"
-        ],
-      }
+            params: {
+              venv: "env",  // 这里保持 env，这样 huggingface-cli 命令才能被找到
+              message: [
+                "smart_download.bat"
+              ],
     },
     {
       method: "notify",
