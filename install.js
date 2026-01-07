@@ -23,14 +23,15 @@ module.exports = {
       }
     },
     // Pre-download Z-Image-Turbo model (~12GB)
-    // Using && dir to ensure clean prompt termination
+    // Using smart_download.bat to auto-detect best source
     {
       method: "shell.run",
-            params: {
-              venv: "env",  // 这里保持 env，这样 huggingface-cli 命令才能被找到
-              message: [
-                "smart_download.bat"
-              ],
+      params: {
+        venv: "env", 
+        message: [
+          "smart_download.bat"
+        ]
+      }
     },
     {
       method: "notify",
