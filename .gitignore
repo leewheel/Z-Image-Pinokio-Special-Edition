@@ -69,3 +69,6 @@ temp/
 #Custom MOD and Lora
 MOD/
 lora/
+outputs/
+logs/
+cache/
