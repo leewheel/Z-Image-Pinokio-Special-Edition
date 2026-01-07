@@ -1,18 +1,17 @@
 module.exports = {
   run: [
-    // Install PyTorch with CUDA support first
+    // Step 1: Install PyTorch (保持不变，这部分是好的)
     {
       method: "script.start",
       params: {
         uri: "torch.js",
         params: {
           venv: "env",
-          xformers: true   // Enable xformers for memory-efficient attention
+          xformers: true   // Enable xformers
         }
       }
     },
-    // Install Z-Image-Turbo dependencies from requirements.txt
-    // This includes diffusers from source with ZImagePipeline support
+    // Step 2: Install Dependencies (保持不变，记得 requirements.txt 里没写 torch)
     {
       method: "shell.run",
       params: {
@@ -22,17 +21,19 @@ module.exports = {
         ],
       }
     },
-    // Pre-download Z-Image-Turbo model (~12GB)
-    // Using smart_download.bat to auto-detect best source
+    // Step 3: Download Model (核心优化：直接克隆到 ckpts)
     {
       method: "shell.run",
       params: {
-        venv: "env", 
+        // 这里不需要 venv，因为 git 是系统命令
+        // 使用 shell.run 可以直接执行数组里的命令
         message: [
-          "smart_download.bat"
+          "git lfs install",
+          "git clone https://hf-mirror.com/Tongyi-MAI/Z-Image-Turbo ckpts\\Z-Image-Turbo"
         ]
       }
     },
+    // Step 4: Finish
     {
       method: "notify",
       params: {
