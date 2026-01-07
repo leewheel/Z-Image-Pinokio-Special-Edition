@@ -29,7 +29,7 @@ module.exports = {
       params: {
         venv: "env",
         message: [
-          "huggingface-cli download Tongyi-MAI/Z-Image-Turbo --local-dir-use-symlinks False && dir"
+           "huggingface-cli download --endpoint-url https://hf-mirror.com Tongyi-MAI/Z-Image-Turbo --local-dir-use-symlinks False && dir"
         ],
       }
     },
