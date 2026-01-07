@@ -31,7 +31,12 @@ module.exports = {
       "params": {
         "venv": "{{args && args.venv ? args.venv : null}}",
         "path": "{{args && args.path ? args.path : '.'}}",
-        "message": "uv pip install torch torchvision torchaudio --force-reinstall --no-deps"
+        // 这里修改成了去下载 CUDA 版本，而不是默认的 CPU 版本
+        "message": [
+          "uv pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu128 --force-reinstall --no-deps",
+          "uv pip install triton-windows==3.3.1.post19",
+          "uv pip install https://huggingface.co/lldacing/flash-attention-windows-wheel/resolve/main/flash_attn-2.7.4.post1%2Bcu128torch2.7.0cxx11abiFALSE-cp310-cp310-win_amd64.whl"
+        ]
       }
     },
     // arm64 mac
